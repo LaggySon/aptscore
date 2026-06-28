@@ -1,0 +1,210 @@
+openapi: 3.0.3
+info:
+  title: aptscore Location POI Scoring API
+  version: "1.0.0"
+  description: >
+    Scores a single location against a user-selected set of interest types using
+    walking proximity and ratings. Produces a primary (unbounded) score and a
+    secondary (bounded 0-100) score. See spec.md FR-001..FR-016.
+servers:
+  - url: /api/v1
+paths:
+  /interest-types:
+    get:
+      summary: List the supported interest types (catalog)
+      operationId: listInterestTypes
+      responses:
+        "200":
+          description: The closed v1 catalog of interest types
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [interestTypes]
+                properties:
+                  interestTypes:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/InterestType"
+  /score:
+    post:
+      summary: Score a single location against selected interest types
+      operationId: scoreLocation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScoreRequest"
+      responses:
+        "200":
+          description: Score produced
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoreResult"
+        "400":
+          description: Invalid request (e.g., no interest types selected; FR-010)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422":
+          description: Location could not be resolved (FR-002)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          description: >
+            Scoring unavailable - routing/places provider unavailable. Fail-closed,
+            no partial or approximate score returned (FR-012).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+components:
+  schemas:
+    ImportanceLevel:
+      type: string
+      enum: [low, medium, high]
+      default: medium
+    InterestType:
+      type: object
+      required: [id, label]
+      properties:
+        id:
+          type: string
+          example: cafes
+        label:
+          type: string
+          example: Cafés
+    RangeSetting:
+      type: object
+      required: [mode, value]
+      properties:
+        mode:
+          type: string
+          enum: [minutes, distance]
+          default: minutes
+        value:
+          type: number
+          exclusiveMinimum: 0
+          description: Walking minutes (default 20) or physical distance
+        distanceUnit:
+          type: string
+          enum: [m, km, mi]
+          description: Required when mode = distance
+    InterestSelection:
+      type: object
+      required: [typeId]
+      properties:
+        typeId:
+          type: string
+          description: Must be a catalog InterestType.id
+        importance:
+          $ref: "#/components/schemas/ImportanceLevel"
+    ScoreRequest:
+      type: object
+      required: [location, interests]
+      properties:
+        location:
+          type: object
+          description: Either a text query or explicit coordinates
+          properties:
+            query: { type: string }
+            lat: { type: number }
+            lng: { type: number }
+        interests:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/InterestSelection" }
+        range:
+          $ref: "#/components/schemas/RangeSetting"
+    NearbyPlace:
+      type: object
+      required: [id, name, typeId, walkingSeconds]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        typeId: { type: string }
+        walkingSeconds:
+          type: number
+          description: Routed walking time (authoritative for minutes range mode)
+        walkingMeters:
+          type: number
+          description: Routed walking distance (authoritative for distance range mode)
+        rating:
+          type: number
+          nullable: true
+        reviewCount: { type: integer }
+        value:
+          type: number
+          description: Place value in [0,1] = 0.8*proximityPart + 0.2*ratingPart
+        proximityPart:
+          type: number
+          description: Proximity component in [0,1] (1 at the location, 0 at the range edge)
+        ratingPart:
+          type: number
+          description: Rating component in [0,1] (effectiveRating / maxRating)
+        effectiveRating:
+          type: number
+          description: Rating used for scoring (neutral when unrated/low-review)
+    TypeContribution:
+      type: object
+      required: [typeId, importance, weight, rawSum, boundedScore, idealCeilingK, coverage, contributingPlaces]
+      properties:
+        typeId: { type: string }
+        importance: { $ref: "#/components/schemas/ImportanceLevel" }
+        weight:
+          type: number
+          description: Importance multiplier (low/med/high → 1/2/3)
+        rawSum:
+          type: number
+          description: Linear sum of in-range place values (no diminishing returns)
+        boundedScore:
+          type: number
+          minimum: 0
+          maximum: 100
+        idealCeilingK:
+          type: number
+          description: Ideal-places ceiling K used for boundedScore (rawSum / K * 100)
+        coverage:
+          type: string
+          enum: [ok, no-data]
+        contributingPlaces:
+          type: array
+          items: { $ref: "#/components/schemas/NearbyPlace" }
+    ScoreResult:
+      type: object
+      required: [location, range, primaryScore, secondaryScore, contributions, generatedAt]
+      properties:
+        location:
+          type: object
+          required: [lat, lng, resolved]
+          properties:
+            query: { type: string }
+            lat: { type: number }
+            lng: { type: number }
+            resolved: { type: boolean }
+        range: { $ref: "#/components/schemas/RangeSetting" }
+        primaryScore:
+          type: number
+          minimum: 0
+          description: Unbounded headline score - importance-weighted sum of rawSums
+        secondaryScore:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Importance-weighted average of bounded per-type scores
+        contributions:
+          type: array
+          items: { $ref: "#/components/schemas/TypeContribution" }
+        generatedAt:
+          type: string
+          format: date-time
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [invalid_request, location_unresolved, scoring_unavailable]
+        message: { type: string }

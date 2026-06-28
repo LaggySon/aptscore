@@ -5,3 +5,28 @@
 # OS / editor cruft
 Thumbs.db
 .DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Node / TypeScript
+node_modules/
+dist/
+build/
+coverage/
+*.log
+*.tsbuildinfo
+
+# Next.js
+.next/
+.next-test/
+next-env.d.ts
+
+# Playwright
+/test-results/
+/playwright-report/
+
+# Environment / secrets (never commit)
+.env
+.env.*
+!.env.example
