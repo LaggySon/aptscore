@@ -27,7 +27,7 @@ in `src/server`, UI in `src/app` + `src/components`. Playwright tests in `e2e/`.
 - [X] T001 Scaffold a single Next.js 14 App Router app at the repo root (`package.json`, `next.config.mjs`, `src/app/layout.tsx`, `src/app/page.tsx`)
 - [X] T002 Configure TypeScript strict in `tsconfig.json`
 - [X] T003 [P] Configure Tailwind CSS (`tailwind.config.ts`, `postcss.config.mjs`, `src/app/globals.css`)
-- [ ] T004 [P] Configure ESLint + Prettier (no unjustified `any`) in `.eslintrc.cjs`
+- [X] T004 [P] Configure ESLint + Prettier (no unjustified `any`) in `.eslintrc.cjs`
 - [X] T005 [P] Configure Playwright (`playwright.config.ts`) with a `webServer` that starts the app in test mode (`APTSCORE_TEST_MODE=1`); tests live in `e2e/`
 
 ---
@@ -120,14 +120,14 @@ in `src/server`, UI in `src/app` + `src/components`. Playwright tests in `e2e/`.
 
 ### Tests for User Story 3 (write first, must fail) âš ï¸
 
-- [ ] T055 [P] [US3] API test: changing importance changes both scores; omitted â‡’ medium (FR-009) in `e2e/api.spec.ts`
-- [ ] T056 [P] [US3] E2E: importance controls update the score in `e2e/ui.spec.ts`
+- [X] T055 [P] [US3] API test: changing importance changes both scores; omitted â‡’ medium (FR-009) in `e2e/api.spec.ts`
+- [X] T056 [P] [US3] E2E: importance controls update the score in `e2e/ui.spec.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T057 [US3] Ensure schema + service pass per-interest importance (default medium) in `src/server/api/schemas/score.ts` and `src/server/services/scoring-service.ts`
-- [ ] T058 [P] [US3] Implement ImportanceControl in `src/components/ImportanceControl.tsx`
-- [ ] T059 [US3] Wire importance changes to re-score in `src/app/page.tsx`
+- [X] T057 [US3] Ensure schema + service pass per-interest importance (default medium) in `src/server/api/schemas/score.ts` and `src/server/services/scoring-service.ts`
+- [X] T058 [P] [US3] Implement ImportanceControl in `src/components/ImportanceControl.tsx`
+- [X] T059 [US3] Wire importance changes to re-score in `src/app/page.tsx`
 
 ---
 
@@ -137,7 +137,7 @@ in `src/server`, UI in `src/app` + `src/components`. Playwright tests in `e2e/`.
 - [ ] T061 Record calibration outcome + chosen mode (sunset) in `specs/001-location-poi-scoring/research.md`
 - [ ] T062 [P] Performance check within SC-001; validate candidate cap N in `e2e/performance.spec.ts`
 - [ ] T063 [P] Run quickstart.md validation scenarios end-to-end
-- [ ] T064 [P] Add `README.md` (setup, env vars, run, test)
+- [X] T064 [P] Add `README.md` (setup, env vars, run, test)
 - [ ] T065 Constitution compliance review of the diff
 
 ---
@@ -173,5 +173,6 @@ in `src/server`, UI in `src/app` + `src/components`. Playwright tests in `e2e/`.
 - Playwright runs against a test-mode server (`APTSCORE_TEST_MODE=1`) wired with fixture adapters;
   sentinel queries drive error paths (`nowhere`â†’422, `provider-outage`â†’503)
 - Commit after each task or logical group
+
 
 

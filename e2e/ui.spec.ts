@@ -38,4 +38,24 @@ test.describe('Scoring UI (US1)', () => {
     await expect(page.getByText('Top match')).toBeVisible();
     await expect(page.getByText(/no data for this area/i)).toBeVisible();
   });
+
+  test('changing an interest\'s importance changes the score (US3 / FR-009)', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Cafés' }).click();
+    await page.getByRole('button', { name: 'Public transit' }).click();
+    await page.getByPlaceholder(/example st/i).fill('home');
+
+    const scoreButton = page.getByRole('button', { name: /score this location/i });
+    await scoreButton.click();
+    const before = await page.getByTestId('primary-score').textContent();
+
+    // Raise transit importance to High, then re-score.
+    await page
+      .getByRole('group', { name: /importance for public transit/i })
+      .getByRole('button', { name: 'High' })
+      .click();
+    await scoreButton.click();
+
+    await expect(page.getByTestId('primary-score')).not.toHaveText(before ?? '');
+  });
 });

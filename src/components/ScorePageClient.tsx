@@ -5,11 +5,12 @@ import { InterestPicker } from './InterestPicker';
 import { RangeControl } from './RangeControl';
 import { ScoreView } from './ScoreView';
 import { BreakdownView } from './BreakdownView';
+import { ImportanceControl } from './ImportanceControl';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { Field } from './ui/Field';
 import { ApiError, fetchInterestTypes, scoreLocation } from '../services/api-client';
-import type { InterestTypeOption, RangeSetting, ScoreResult } from '../types';
+import type { ImportanceLevel, InterestTypeOption, RangeSetting, ScoreResult } from '../types';
 
 const DEFAULT_RANGE: RangeSetting = { mode: 'minutes', value: 20 };
 const inputClasses =
@@ -19,6 +20,7 @@ const inputClasses =
 export const ScorePageClient = () => {
   const [options, setOptions] = useState<InterestTypeOption[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [importanceByType, setImportanceByType] = useState<Record<string, ImportanceLevel>>({});
   const [query, setQuery] = useState('');
   const [range, setRange] = useState<RangeSetting>(DEFAULT_RANGE);
   const [result, setResult] = useState<ScoreResult | null>(null);
@@ -44,6 +46,9 @@ export const ScorePageClient = () => {
   const labelOf = (typeId: string): string =>
     options.find((option) => option.id === typeId)?.label ?? typeId;
 
+  const setImportance = (typeId: string, level: ImportanceLevel) =>
+    setImportanceByType((current) => ({ ...current, [typeId]: level }));
+
   const submit = async () => {
     setLoading(true);
     setError(null);
@@ -51,7 +56,10 @@ export const ScorePageClient = () => {
       setResult(
         await scoreLocation({
           location: { query: query.trim() },
-          interests: selectedIds.map((typeId) => ({ typeId })),
+          interests: selectedIds.map((typeId) => ({
+            typeId,
+            importance: importanceByType[typeId] ?? 'medium',
+          })),
           range,
         }),
       );
@@ -74,8 +82,21 @@ export const ScorePageClient = () => {
 
       <Card title="What matters to you?">
         <InterestPicker options={options} selectedIds={selectedIds} onToggle={toggle} />
-        {!hasSelection && (
+        {!hasSelection ? (
           <p className="mt-2 text-sm text-amber-600">Select at least one interest type to score.</p>
+        ) : (
+          <ul className="mt-4 space-y-2 border-t border-slate-100 pt-3">
+            {selectedIds.map((id) => (
+              <li key={id} className="flex items-center justify-between gap-3">
+                <span className="text-sm text-slate-600">{labelOf(id)}</span>
+                <ImportanceControl
+                  ariaLabel={`Importance for ${labelOf(id)}`}
+                  value={importanceByType[id] ?? 'medium'}
+                  onChange={(level) => setImportance(id, level)}
+                />
+              </li>
+            ))}
+          </ul>
         )}
       </Card>
 
