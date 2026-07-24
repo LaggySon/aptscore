@@ -4,7 +4,10 @@ import { MockPlacesAdapter, type MockPlacesConfig } from './adapters/places/mock
 import { MockRoutingAdapter } from './adapters/routing/mock-routing-adapter';
 import { OverpassPlacesAdapter } from './adapters/places/overpass-places-adapter';
 import { OrsRoutingAdapter } from './adapters/routing/ors-routing-adapter';
+import { MockIsochroneAdapter } from './adapters/isochrone/mock-isochrone-adapter';
+import { GoogleIsochroneAdapter } from './adapters/isochrone/google-isochrone-adapter';
 import { ScoringService } from './services/scoring-service';
+import { IsochroneService } from './services/isochrone-service';
 import type { CandidatePlace } from './domain/types';
 
 /** Build a fixture candidate near the origin; distance is recomputed by the adapter. */
@@ -66,4 +69,38 @@ export const getScoringService = (): ScoringService => {
         }),
       });
   return cached;
+};
+
+let cachedIsochrone: IsochroneService | undefined;
+
+/**
+ * Lazily build the isochrone service. It shares the places adapter with scoring so the
+ * map origin resolves through the same 422/503 fail-closed paths, and draws the
+ * reachable-area polygon from a deterministic fixture in test mode or the Google
+ * Isochrones API otherwise.
+ */
+export const getIsochroneService = (): IsochroneService => {
+  if (cachedIsochrone) return cachedIsochrone;
+  const config = loadConfig();
+
+  cachedIsochrone = config.testMode
+    ? new IsochroneService({
+        logger,
+        places: new MockPlacesAdapter(TEST_FIXTURES),
+        isochrone: new MockIsochroneAdapter(),
+        attribution: 'Fixture isochrone (test mode)',
+      })
+    : new IsochroneService({
+        logger,
+        places: new OverpassPlacesAdapter({
+          overpassUrl: config.placesBaseUrl,
+          geocodeUrl: config.geocodeBaseUrl,
+        }),
+        isochrone: new GoogleIsochroneAdapter({
+          baseUrl: config.isochroneBaseUrl,
+          apiKey: config.isochroneApiKey,
+        }),
+        attribution: 'Powered by Google',
+      });
+  return cachedIsochrone;
 };

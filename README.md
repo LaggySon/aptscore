@@ -1,6 +1,6 @@
 # aptscore
 
-Score a single location by how close it is to the things that matter to *you*. Pick the
+Score a single location by how close it is to the things that matter to _you_. Pick the
 points of interest you care about (groceries, transit, cafés, parks, …), enter an address,
 and get a score reflecting how well that spot is served within walking distance — plus a
 full breakdown of how the score was calculated.
@@ -14,8 +14,9 @@ research, data model, API contract, and tasks, and
 
 - ✅ **US1 — Score a location** (primary + secondary scores, routed walking ranges)
 - ✅ **US2 — Explainable breakdown** (per-place math, top match, no-data states)
-- ⏳ US3 — Importance controls (API supports it; UI controls pending)
-- ⏳ Polish — calibration/sunset decision, real ratings provider, README/lint, perf
+- ✅ **US3 — Importance controls**
+- ✅ **Walkable-area map** (Google Isochrones API — the reachable-area "cloud" overlay)
+- ⏳ Polish — calibration/sunset decision, real ratings provider, perf
 
 ## Tech stack
 
@@ -24,7 +25,8 @@ A single **Next.js 14 (App Router)** app in TypeScript:
 - **API:** Route Handlers under `/api/v1` (`score`, `interest-types`)
 - **Domain:** pure, deterministic scoring in `src/server/domain` (fully isolated from I/O)
 - **Providers:** OpenStreetMap (Overpass + Nominatim) for places/geocoding, OpenRouteService
-  for walking distances — behind mockable adapters
+  for walking distances, and the Google Isochrones API for the reachable-area map — all
+  behind mockable adapters
 - **UI:** React + Tailwind CSS, reusable components in `src/components`
 - **Tests:** Playwright (API + browser E2E) against a deterministic test-mode server
 
@@ -40,6 +42,16 @@ A single **Next.js 14 (App Router)** app in TypeScript:
 
 > Note: OSM has no ratings, so on live data the rating term is currently neutral. A
 > ratings-capable provider is a planned addition (see the spec's Assumptions).
+
+## Walkable-area map
+
+Alongside the score, the result shows a **reachable-area map**: the set of points you can
+actually reach on foot within your range, drawn as a translucent "cloud" over a stylized
+map with your location pinned at the centre. Unlike a plain radius, this follows the real
+street network. The polygon comes from the [Google Isochrones API](https://developers.google.com/maps/documentation/isochrones/overview)
+(`POST /v1/isochrones:generate`, RFC 7946 GeoJSON), behind a mockable adapter that
+**fails closed** — if the provider is unavailable the score still renders, just without the
+map. In test mode a deterministic fixture polygon is used, so no network or key is needed.
 
 ## Getting started
 
@@ -66,14 +78,16 @@ Any address scores from fixtures, except sentinels `nowhere` (→ 422) and `prov
 
 ## Environment variables
 
-| Variable | Purpose | Default |
-|----------|---------|---------|
-| `ROUTING_API_KEY` | OpenRouteService key (walking measurement) | — (required for live data) |
-| `PLACES_BASE_URL` | Overpass endpoint | public Overpass |
-| `NOMINATIM_BASE_URL` | Geocoding endpoint | public Nominatim |
-| `ROUTING_BASE_URL` | OpenRouteService endpoint | ORS public API |
-| `APTSCORE_TEST_MODE` | `1` wires fixture adapters (no network) | `0` |
-| `LOG_LEVEL` | Pino log level | `info` |
+| Variable             | Purpose                                                      | Default                    |
+| -------------------- | ------------------------------------------------------------ | -------------------------- |
+| `ROUTING_API_KEY`    | OpenRouteService key (walking measurement)                   | — (required for live data) |
+| `ISOCHRONE_API_KEY`  | Google Maps Platform key (Isochrones API, walkable-area map) | — (map hidden if unset)    |
+| `PLACES_BASE_URL`    | Overpass endpoint                                            | public Overpass            |
+| `NOMINATIM_BASE_URL` | Geocoding endpoint                                           | public Nominatim           |
+| `ROUTING_BASE_URL`   | OpenRouteService endpoint                                    | ORS public API             |
+| `ISOCHRONE_BASE_URL` | Google Isochrones endpoint                                   | Google public API          |
+| `APTSCORE_TEST_MODE` | `1` wires fixture adapters (no network)                      | `0`                        |
+| `LOG_LEVEL`          | Pino log level                                               | `info`                     |
 
 Secrets are read only from the environment and never committed.
 
@@ -87,7 +101,8 @@ npm run typecheck        # tsc --noEmit
 
 ## API
 
-`POST /api/v1/score` and `GET /api/v1/interest-types`. See the OpenAPI contract at
+`POST /api/v1/score`, `POST /api/v1/isochrone`, and `GET /api/v1/interest-types`. See the
+OpenAPI contract at
 [`specs/001-location-poi-scoring/contracts/openapi.yaml`](specs/001-location-poi-scoring/contracts/openapi.yaml).
 
 Example:

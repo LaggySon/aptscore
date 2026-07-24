@@ -4,6 +4,9 @@ export interface AppConfig {
   placesBaseUrl: string;
   geocodeBaseUrl: string;
   routingBaseUrl: string;
+  /** Google Maps Platform key for the Isochrones API (reachable-area map). */
+  isochroneApiKey: string | undefined;
+  isochroneBaseUrl: string;
   logLevel: string;
   /** When true, the container wires deterministic fixture adapters instead of real providers. */
   testMode: boolean;
@@ -14,6 +17,8 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): AppConfig => (
   placesBaseUrl: env.PLACES_BASE_URL ?? 'https://overpass-api.de/api/interpreter',
   geocodeBaseUrl: env.NOMINATIM_BASE_URL ?? 'https://nominatim.openstreetmap.org',
   routingBaseUrl: env.ROUTING_BASE_URL ?? 'https://api.openrouteservice.org',
+  isochroneApiKey: env.ISOCHRONE_API_KEY,
+  isochroneBaseUrl: env.ISOCHRONE_BASE_URL ?? 'https://isochrones.googleapis.com',
   logLevel: env.LOG_LEVEL ?? 'info',
   testMode: env.APTSCORE_TEST_MODE === '1',
 });

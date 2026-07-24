@@ -90,6 +90,21 @@ export interface TypeContribution {
   contributingPlaces: ScoredPlace[];
 }
 
+/** A reachable-area polygon for one location, for the isochrone map ("cloud"). */
+export interface IsochroneResult {
+  location: ResolvedLocation;
+  range: RangeSetting;
+  /** Travel-time budget the boundary represents, in seconds. */
+  durationSeconds: number;
+  travelMode: 'walking';
+  /** GeoJSON Polygon rings ([lng, lat]); outer boundary first, then holes. */
+  rings: Array<Array<[number, number]>>;
+  /** Provider attribution to display alongside the map. */
+  attribution: string;
+  /** Observability only — never an input, preserving determinism (FR-014). */
+  generatedAt: string;
+}
+
 /** The full scoring result for a single location (FR-008/013). */
 export interface ScoreResult {
   location: ResolvedLocation;

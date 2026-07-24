@@ -5,12 +5,24 @@ import { InterestPicker } from './InterestPicker';
 import { RangeControl } from './RangeControl';
 import { ScoreView } from './ScoreView';
 import { BreakdownView } from './BreakdownView';
+import { MapView } from './MapView';
 import { ImportanceControl } from './ImportanceControl';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { Field } from './ui/Field';
-import { ApiError, fetchInterestTypes, scoreLocation } from '../services/api-client';
-import type { ImportanceLevel, InterestTypeOption, RangeSetting, ScoreResult } from '../types';
+import {
+  ApiError,
+  fetchInterestTypes,
+  fetchIsochrone,
+  scoreLocation,
+} from '../services/api-client';
+import type {
+  ImportanceLevel,
+  InterestTypeOption,
+  IsochroneResult,
+  RangeSetting,
+  ScoreResult,
+} from '../types';
 
 const DEFAULT_RANGE: RangeSetting = { mode: 'minutes', value: 20 };
 const inputClasses =
@@ -24,6 +36,7 @@ export const ScorePageClient = () => {
   const [query, setQuery] = useState('');
   const [range, setRange] = useState<RangeSetting>(DEFAULT_RANGE);
   const [result, setResult] = useState<ScoreResult | null>(null);
+  const [isochrone, setIsochrone] = useState<IsochroneResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -35,9 +48,7 @@ export const ScorePageClient = () => {
 
   const toggle = (typeId: string) =>
     setSelectedIds((current) =>
-      current.includes(typeId)
-        ? current.filter((id) => id !== typeId)
-        : [...current, typeId],
+      current.includes(typeId) ? current.filter((id) => id !== typeId) : [...current, typeId],
     );
 
   const hasSelection = selectedIds.length > 0;
@@ -52,10 +63,11 @@ export const ScorePageClient = () => {
   const submit = async () => {
     setLoading(true);
     setError(null);
+    const location = { query: query.trim() };
     try {
       setResult(
         await scoreLocation({
-          location: { query: query.trim() },
+          location,
           interests: selectedIds.map((typeId) => ({
             typeId,
             importance: importanceByType[typeId] ?? 'medium',
@@ -63,8 +75,11 @@ export const ScorePageClient = () => {
           range,
         }),
       );
+      // The reachable-area map is a secondary visualization: never let it fail the score.
+      setIsochrone(await fetchIsochrone({ location, range }).catch(() => null));
     } catch (caught) {
       setResult(null);
+      setIsochrone(null);
       setError(caught instanceof ApiError ? caught.message : 'Something went wrong.');
     } finally {
       setLoading(false);
@@ -124,6 +139,12 @@ export const ScorePageClient = () => {
       {result && (
         <Card title="Result">
           <ScoreView result={result} />
+          {isochrone && (
+            <div className="mt-5 border-t border-slate-100 pt-4">
+              <h3 className="mb-3 text-sm font-semibold text-slate-700">Walkable area</h3>
+              <MapView isochrone={isochrone} />
+            </div>
+          )}
           <div className="mt-5 border-t border-slate-100 pt-4">
             <h3 className="mb-3 text-sm font-semibold text-slate-700">Why this score</h3>
             <BreakdownView contributions={result.contributions} labelOf={labelOf} />
