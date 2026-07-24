@@ -65,3 +65,23 @@ export interface ScoreRequest {
   interests: InterestSelection[];
   range?: RangeSetting;
 }
+
+/** A GeoJSON position, `[longitude, latitude]` per RFC 7946. */
+export type GeoPosition = [number, number];
+
+/** Reachable-area ("isochrone") polygon for the map visualization. */
+export interface IsochroneResult {
+  location: { query?: string; lat: number; lng: number; resolved: boolean };
+  range: RangeSetting;
+  durationSeconds: number;
+  travelMode: 'walking';
+  /** GeoJSON Polygon rings ([lng, lat]); outer boundary first, then holes. */
+  rings: GeoPosition[][];
+  attribution: string;
+  generatedAt: string;
+}
+
+export interface IsochroneRequest {
+  location: { query?: string; lat?: number; lng?: number };
+  range?: RangeSetting;
+}

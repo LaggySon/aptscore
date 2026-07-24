@@ -38,3 +38,6 @@ export const DEFAULT_IMPORTANCE = 'medium' as const;
 
 /** Routing call budget before failing closed (FR-012). */
 export const ROUTING = { timeoutMs: 5000, retries: 2 } as const;
+
+/** Isochrone (reachable-area) provider call budget before failing closed (FR-012). */
+export const ISOCHRONE = { timeoutMs: 5000, retries: 2 } as const;
