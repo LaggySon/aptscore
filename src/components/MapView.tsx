@@ -421,11 +421,9 @@ export const MapView = ({ isochrone, result, state, panelCollapsed }: MapViewPro
       aria-label="Interactive neighborhood map"
       data-testid="isochrone-map"
     >
-      <StaticMapFallback
-        isochrone={isochrone}
-        result={result}
-        interactive={!mapReady || mapFailed}
-      />
+      {(!mapReady || mapFailed) && (
+        <StaticMapFallback isochrone={isochrone} result={result} interactive />
+      )}
       <div
         ref={containerRef}
         className={`maplibre-container ${mapReady && !mapFailed ? 'is-ready' : ''}`}

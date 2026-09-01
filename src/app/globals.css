@@ -277,6 +277,7 @@ summary:focus-visible {
   visibility: hidden;
 }
 .maplibre-container.is-ready {
+  z-index: 5;
   visibility: visible;
 }
 .maplibregl-canvas {
