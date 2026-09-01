@@ -51,12 +51,30 @@ export interface TypeContribution {
   contributingPlaces: ScoredPlace[];
 }
 
+export interface LocalPaceResult {
+  paceMph: number;
+  paceLabel: string;
+  modelVersion: number;
+  radiusMeters: number;
+  components: {
+    streetActivity: number;
+    transitIntensity: number;
+    roadIntensity: number;
+  };
+  raw: {
+    streetActivity: number;
+    transitIntensity: number;
+    roadIntensity: number;
+  };
+}
+
 export interface ScoreResult {
   location: { query?: string; lat: number; lng: number; resolved: boolean };
   range: RangeSetting;
   primaryScore: number;
   secondaryScore: number;
   contributions: TypeContribution[];
+  localPace: LocalPaceResult;
   generatedAt: string;
 }
 

@@ -1,9 +1,13 @@
 # aptscore
 
-Score a single location by how close it is to the things that matter to *you*. Pick the
+Score a single location by how close it is to the things that matter to _you_. Pick the
 points of interest you care about (groceries, transit, cafés, parks, …), enter an address,
 and get a score reflecting how well that spot is served within walking distance — plus a
 full breakdown of how the score was calculated.
+
+Every result also includes **Local Pace**, a deterministic 0–100 urban-intensity measure shown
+with a metaphorical `mph` unit. It describes how intense the ordinary walkable environment feels;
+it is deliberately separate from desirability, beauty, safety, affordability, and transit quality.
 
 Built with [GitHub Spec Kit](https://github.com/github/spec-kit): see
 [`specs/001-location-poi-scoring/`](specs/001-location-poi-scoring/) for the spec, plan,
@@ -14,6 +18,7 @@ research, data model, API contract, and tasks, and
 
 - ✅ **US1 — Score a location** (primary + secondary scores, routed walking ranges)
 - ✅ **US2 — Explainable breakdown** (per-place math, top match, no-data states)
+- ✅ **Local Pace v1** (OSM street activity + transit + roads, calibrated and explainable)
 - ⏳ US3 — Importance controls (API supports it; UI controls pending)
 - ⏳ Polish — calibration/sunset decision, real ratings provider, README/lint, perf
 
@@ -37,6 +42,12 @@ A single **Next.js 14 (App Router)** app in TypeScript:
 3. The **0–100 score** for a category = `raw sum ÷ K ideal places × 100` (capped at 100).
 4. The **headline score** is the importance-weighted sum of raw sums; the **0–100 score** is
    the importance-weighted average of category scores.
+
+Local Pace uses its own fixed 800m catchment. Features within 400m receive full weight and those
+from 400–800m receive half weight. Its final formula is `50% street activity + 30% transit
+intensity + 20% road intensity`; each component is independently normalized by the frozen Pace
+Model v1 calibration curves. See
+[`specs/003-local-pace/calibration.md`](specs/003-local-pace/calibration.md).
 
 > Note: OSM has no ratings, so on live data the rating term is currently neutral. A
 > ratings-capable provider is a planned addition (see the spec's Assumptions).
@@ -66,14 +77,14 @@ Any address scores from fixtures, except sentinels `nowhere` (→ 422) and `prov
 
 ## Environment variables
 
-| Variable | Purpose | Default |
-|----------|---------|---------|
-| `ROUTING_API_KEY` | OpenRouteService key (walking measurement) | — (required for live data) |
-| `PLACES_BASE_URL` | Overpass endpoint | public Overpass |
-| `NOMINATIM_BASE_URL` | Geocoding endpoint | public Nominatim |
-| `ROUTING_BASE_URL` | OpenRouteService endpoint | ORS public API |
-| `APTSCORE_TEST_MODE` | `1` wires fixture adapters (no network) | `0` |
-| `LOG_LEVEL` | Pino log level | `info` |
+| Variable             | Purpose                                    | Default                    |
+| -------------------- | ------------------------------------------ | -------------------------- |
+| `ROUTING_API_KEY`    | OpenRouteService key (walking measurement) | — (required for live data) |
+| `PLACES_BASE_URL`    | Overpass endpoint                          | public Overpass            |
+| `NOMINATIM_BASE_URL` | Geocoding endpoint                         | public Nominatim           |
+| `ROUTING_BASE_URL`   | OpenRouteService endpoint                  | ORS public API             |
+| `APTSCORE_TEST_MODE` | `1` wires fixture adapters (no network)    | `0`                        |
+| `LOG_LEVEL`          | Pino log level                             | `info`                     |
 
 Secrets are read only from the environment and never committed.
 
@@ -83,6 +94,7 @@ Secrets are read only from the environment and never committed.
 npx playwright install   # one-time: download browser binaries
 npm test                 # Playwright API + E2E (auto-starts a test-mode server on :3100)
 npm run typecheck        # tsc --noEmit
+npm run calibrate:pace   # refresh live calibration measurements (not used by tests)
 ```
 
 ## API

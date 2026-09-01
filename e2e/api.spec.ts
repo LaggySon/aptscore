@@ -28,7 +28,9 @@ test.describe('GET /api/v1/interest-types (FR-001)', () => {
 });
 
 test.describe('POST /api/v1/score', () => {
-  test('happy path returns both scores and one contribution per type (FR-008)', async ({ request }) => {
+  test('happy path returns both scores and one contribution per type (FR-008)', async ({
+    request,
+  }) => {
     const response = await score(request, {
       location: { query: 'home' },
       interests: [{ typeId: 'cafes' }, { typeId: 'transit' }],
@@ -39,6 +41,22 @@ test.describe('POST /api/v1/score', () => {
     expect(body.secondaryScore).toBeGreaterThanOrEqual(0);
     expect(body.secondaryScore).toBeLessThanOrEqual(100);
     expect(body.contributions).toHaveLength(2);
+    expect(body.localPace).toEqual({
+      paceMph: expect.any(Number),
+      paceLabel: expect.any(String),
+      modelVersion: 1,
+      radiusMeters: 800,
+      components: {
+        streetActivity: expect.any(Number),
+        transitIntensity: expect.any(Number),
+        roadIntensity: expect.any(Number),
+      },
+      raw: {
+        streetActivity: expect.any(Number),
+        transitIntensity: expect.any(Number),
+        roadIntensity: expect.any(Number),
+      },
+    });
   });
 
   test('well-served scores higher than poorly-served (SC-002)', async ({ request }) => {
@@ -106,6 +124,7 @@ test.describe('POST /api/v1/score', () => {
     expect(second.primaryScore).toBe(first.primaryScore);
     expect(second.secondaryScore).toBe(first.secondaryScore);
     expect(second.contributions).toEqual(first.contributions);
+    expect(second.localPace).toEqual(first.localPace);
   });
 
   test('distance-mode range filters by walking distance (FR-003)', async ({ request }) => {

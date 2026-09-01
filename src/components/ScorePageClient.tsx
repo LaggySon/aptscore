@@ -6,6 +6,7 @@ import { RangeControl } from './RangeControl';
 import { ScoreView } from './ScoreView';
 import { BreakdownView } from './BreakdownView';
 import { ImportanceControl } from './ImportanceControl';
+import { LocalPaceView } from './LocalPaceView';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { Field } from './ui/Field';
@@ -35,9 +36,7 @@ export const ScorePageClient = () => {
 
   const toggle = (typeId: string) =>
     setSelectedIds((current) =>
-      current.includes(typeId)
-        ? current.filter((id) => id !== typeId)
-        : [...current, typeId],
+      current.includes(typeId) ? current.filter((id) => id !== typeId) : [...current, typeId],
     );
 
   const hasSelection = selectedIds.length > 0;
@@ -124,6 +123,7 @@ export const ScorePageClient = () => {
       {result && (
         <Card title="Result">
           <ScoreView result={result} />
+          <LocalPaceView pace={result.localPace} />
           <div className="mt-5 border-t border-slate-100 pt-4">
             <h3 className="mb-3 text-sm font-semibold text-slate-700">Why this score</h3>
             <BreakdownView contributions={result.contributions} labelOf={labelOf} />

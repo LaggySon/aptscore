@@ -1,15 +1,9 @@
 import type { LatLng, PlacesAdapter } from './places-adapter';
 import type { CandidatePlace, ResolvedLocation, TypeCandidates } from '../../domain/types';
-import { LocationUnresolved, ScoringUnavailable } from '../../domain/errors';
+import { LocationUnresolved } from '../../domain/errors';
 import { haversineMeters } from '../../lib/geo';
 import { providerTagsForType, type ProviderTag } from './category-mapping';
-
-/** Transient statuses worth retrying with backoff (rate-limit / gateway hiccups). */
-const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
-const MAX_RETRIES = 2;
-const BACKOFF_BASE_MS = 600;
-
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+import { OsmClient } from '../overpass-client';
 
 interface OverpassElement {
   id: number;
@@ -44,14 +38,16 @@ export interface OverpassOptions {
  */
 export class OverpassPlacesAdapter implements PlacesAdapter {
   private readonly userAgent: string;
+  private readonly client: OsmClient;
 
   constructor(private readonly options: OverpassOptions) {
     this.userAgent = options.userAgent ?? 'aptscore/0.1';
+    this.client = new OsmClient(this.userAgent);
   }
 
   async resolveLocation(query: string): Promise<ResolvedLocation> {
     const url = `${this.options.geocodeUrl}/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
-    const response = await this.fetchJson<Array<{ lat: string; lon: string }>>(url);
+    const response = await this.client.fetchJson<Array<{ lat: string; lon: string }>>(url);
     const first = response[0];
     if (!first) throw new LocationUnresolved(query);
     return { query, lat: Number(first.lat), lng: Number(first.lon), resolved: true };
@@ -105,7 +101,7 @@ export class OverpassPlacesAdapter implements PlacesAdapter {
     radiusMeters: number,
     tags: TypedTag[],
   ): Promise<OverpassResponse> {
-    return this.fetchJson<OverpassResponse>(this.options.overpassUrl, {
+    return this.client.fetchJson<OverpassResponse>(this.options.overpassUrl, {
       method: 'POST',
       body: this.buildQuery(center, radiusMeters, tags),
     });
@@ -129,30 +125,5 @@ export class OverpassPlacesAdapter implements PlacesAdapter {
       rating: null,
       reviewCount: 0,
     };
-  }
-
-  /**
-   * Fetch JSON, retrying transient throttling/gateway errors with exponential backoff.
-   * After retries are exhausted the request fails closed as `ScoringUnavailable` (FR-012).
-   */
-  private async fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
-    let lastStatus = 0;
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
-      let response: Response;
-      try {
-        response = await fetch(url, {
-          ...init,
-          headers: { 'User-Agent': this.userAgent, ...init?.headers },
-        });
-      } catch {
-        throw new ScoringUnavailable('Places provider unreachable');
-      }
-      if (response.ok) return (await response.json()) as T;
-
-      lastStatus = response.status;
-      if (!RETRYABLE_STATUSES.has(response.status) || attempt === MAX_RETRIES) break;
-      await sleep(BACKOFF_BASE_MS * 2 ** attempt);
-    }
-    throw new ScoringUnavailable(`Places provider error (${lastStatus})`);
   }
 }

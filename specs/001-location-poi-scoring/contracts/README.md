@@ -14,7 +14,8 @@ the handlers directly) assert that request/response shapes match.
 
 - `200` — a `ScoreResult` with both `primaryScore` (unbounded headline) and `secondaryScore`
   (0–100), plus a per-type `contributions` array that **always includes every selected type**, even
-  zero-contribution ones (FR-011).
+  zero-contribution ones (FR-011). It also includes additive `localPace`: a separate metaphorical
+  urban-intensity score with component scores, raw measurements, radius, label, and model version.
 - `400 invalid_request` — e.g., zero interest types selected (FR-010), unknown `typeId`, bad range.
 - `422 location_unresolved` — the location could not be resolved (FR-002).
 - `503 scoring_unavailable` — routing/places provider unavailable; **fail-closed**, no partial or
