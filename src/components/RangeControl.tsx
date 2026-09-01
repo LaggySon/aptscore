@@ -1,5 +1,5 @@
-import { Field } from './ui/Field';
 import type { DistanceUnit, RangeSetting } from '../types';
+import { Icon } from './ui/Icon';
 
 interface RangeControlProps {
   value: RangeSetting;
@@ -7,8 +7,7 @@ interface RangeControlProps {
 }
 
 const DISTANCE_UNITS: DistanceUnit[] = ['m', 'km', 'mi'];
-const inputClasses =
-  'w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none';
+const TIME_PRESETS = [10, 15, 20, 30];
 
 /** Controls the catchment: a walking-minutes budget or a fixed walking distance (FR-003). */
 export const RangeControl = ({ value, onChange }: RangeControlProps) => {
@@ -20,39 +19,56 @@ export const RangeControl = ({ value, onChange }: RangeControlProps) => {
     );
 
   return (
-    <div className="space-y-3">
-      <Field label="Range type">
+    <div className="range-control">
+      <div className="range-mode-row">
+        <span className="range-mode-row__icon">
+          <Icon name="walk" />
+        </span>
         <select
+          aria-label="Range type"
           value={value.mode}
           onChange={(event) => switchMode(event.target.value as RangeSetting['mode'])}
-          className={inputClasses}
+          className="range-mode-select"
         >
-          <option value="minutes">Walking minutes</option>
-          <option value="distance">Fixed walking distance</option>
+          <option value="minutes">Walking time</option>
+          <option value="distance">Walking distance</option>
         </select>
-      </Field>
+        <Icon name="chevron-down" className="range-mode-row__chevron" />
+      </div>
 
-      <div className="flex gap-2">
-        <Field label={value.mode === 'minutes' ? 'Minutes' : 'Distance'}>
-          <input
-            type="number"
-            min={1}
-            value={value.value}
-            onChange={(event) =>
-              onChange({ ...value, value: Number(event.target.value) })
-            }
-            className={inputClasses}
-          />
-        </Field>
-
-        {value.mode === 'distance' && (
-          <Field label="Unit">
+      {value.mode === 'minutes' ? (
+        <div className="range-presets" role="group" aria-label="Walking time">
+          {TIME_PRESETS.map((minutes) => (
+            <button
+              type="button"
+              key={minutes}
+              aria-pressed={value.value === minutes}
+              onClick={() => onChange({ mode: 'minutes', value: minutes })}
+            >
+              {minutes}
+              <small> min</small>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="distance-inputs">
+          <label>
+            <span>Distance</span>
+            <input
+              type="number"
+              min={1}
+              value={value.value}
+              onChange={(event) => onChange({ ...value, value: Number(event.target.value) })}
+            />
+          </label>
+          <label>
+            <span>Unit</span>
             <select
+              aria-label="Unit"
               value={value.distanceUnit ?? 'm'}
               onChange={(event) =>
                 onChange({ ...value, distanceUnit: event.target.value as DistanceUnit })
               }
-              className={inputClasses}
             >
               {DISTANCE_UNITS.map((unit) => (
                 <option key={unit} value={unit}>
@@ -60,9 +76,9 @@ export const RangeControl = ({ value, onChange }: RangeControlProps) => {
                 </option>
               ))}
             </select>
-          </Field>
-        )}
-      </div>
+          </label>
+        </div>
+      )}
     </div>
   );
 };

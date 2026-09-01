@@ -1,4 +1,3 @@
-import { ScoreBadge } from './ui/ScoreBadge';
 import type { ScoreResult } from '../types';
 
 interface ScoreViewProps {
@@ -9,19 +8,21 @@ interface ScoreViewProps {
  * Shows the headline (primary, unbounded) score with the secondary 0–100 score
  * alongside for interpretation (FR-008).
  */
-export const ScoreView = ({ result }: ScoreViewProps) => (
-  <div className="flex items-end gap-8">
-    <ScoreBadge
-      label="Overall score"
-      value={result.primaryScore.toFixed(2)}
-      emphasis="headline"
-      testId="primary-score"
-    />
-    <ScoreBadge
-      label="Normalized (0–100)"
-      value={Math.round(result.secondaryScore).toString()}
-      emphasis="muted"
-      testId="secondary-score"
-    />
-  </div>
-);
+export const ScoreView = ({ result }: ScoreViewProps) => {
+  const score = Math.round(result.secondaryScore);
+  return (
+    <section className="score-hero">
+      <div className="score-value">
+        <strong data-testid="secondary-score">{score}</strong>
+        <span>/100</span>
+      </div>
+      <div className="score-hero__copy">
+        <h2>AptScore</h2>
+        <p>Based on your selected categories and walking range.</p>
+        <span className="raw-score" data-testid="primary-score">
+          Raw score {result.primaryScore.toFixed(2)}
+        </span>
+      </div>
+    </section>
+  );
+};

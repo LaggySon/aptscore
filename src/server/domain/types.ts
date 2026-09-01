@@ -63,6 +63,8 @@ export interface NearbyPlace {
   id: string;
   name: string;
   typeId: string;
+  lat: number;
+  lng: number;
   walkingSeconds: number;
   walkingMeters: number;
   straightLineMeters: number;
@@ -104,5 +106,17 @@ export interface ScoreResult {
   /** Metaphorical 0–100 urban-intensity score, separate from desirability. */
   localPace: LocalPaceResult;
   /** Observability only — never an input to scoring, preserving determinism (FR-014). */
+  generatedAt: string;
+}
+
+/** A GeoJSON position in `[longitude, latitude]` order. */
+export type GeoPosition = [number, number];
+
+export interface IsochroneResult {
+  location: ResolvedLocation;
+  range: RangeSetting;
+  travelMode: 'walking';
+  rings: GeoPosition[][];
+  attribution: string;
   generatedAt: string;
 }

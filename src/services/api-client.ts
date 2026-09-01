@@ -1,4 +1,10 @@
-import type { InterestTypeOption, ScoreRequest, ScoreResult } from '../types';
+import type {
+  InterestTypeOption,
+  IsochroneRequest,
+  IsochroneResult,
+  ScoreRequest,
+  ScoreResult,
+} from '../types';
 
 // Same-origin Next.js Route Handlers.
 const BASE_URL = '/api/v1';
@@ -16,9 +22,10 @@ export class ApiError extends Error {
 
 /** Parse a non-2xx response into an ApiError, falling back to a generic message. */
 const toApiError = async (response: Response): Promise<ApiError> => {
-  const body = (await response.json().catch(() => null)) as
-    | { code?: string; message?: string }
-    | null;
+  const body = (await response.json().catch(() => null)) as {
+    code?: string;
+    message?: string;
+  } | null;
   return new ApiError(
     body?.code ?? 'request_failed',
     body?.message ?? `Request failed (${response.status})`,
@@ -40,4 +47,14 @@ export const scoreLocation = async (request: ScoreRequest): Promise<ScoreResult>
   });
   if (!response.ok) throw await toApiError(response);
   return (await response.json()) as ScoreResult;
+};
+
+export const fetchIsochrone = async (request: IsochroneRequest): Promise<IsochroneResult> => {
+  const response = await fetch(`${BASE_URL}/isochrone`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) throw await toApiError(response);
+  return (await response.json()) as IsochroneResult;
 };

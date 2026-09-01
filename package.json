@@ -13,6 +13,7 @@
     "calibrate:pace": "tsx scripts/calibrate-pace.ts"
   },
   "dependencies": {
+    "maplibre-gl": "^6.6.0",
     "next": "^14.2.5",
     "pino": "^9.3.2",
     "react": "^18.3.1",

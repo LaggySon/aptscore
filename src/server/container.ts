@@ -8,8 +8,13 @@ import { ScoringService } from './services/scoring-service';
 import type { CandidatePlace } from './domain/types';
 import { MockPaceAdapter } from './adapters/pace/mock-pace-adapter';
 import { OverpassPaceAdapter } from './adapters/pace/overpass-pace-adapter';
+import { MockIsochroneAdapter } from './adapters/isochrone/mock-isochrone-adapter';
+import { OrsIsochroneAdapter } from './adapters/isochrone/ors-isochrone-adapter';
+import { IsochroneService } from './services/isochrone-service';
 
-/** Build a fixture candidate near the origin; distance is recomputed by the adapter. */
+const TEST_ORIGIN = { lat: 51.5074, lng: -0.1278 };
+
+/** Build a fixture candidate near central London; distance is recomputed by the adapter. */
 const place = (
   typeId: string,
   lngOffset: number,
@@ -18,8 +23,8 @@ const place = (
   id: `${typeId}-${lngOffset}`,
   name: `${typeId} place`,
   typeId,
-  lat: 0,
-  lng: lngOffset,
+  lat: TEST_ORIGIN.lat,
+  lng: TEST_ORIGIN.lng + lngOffset,
   straightLineMeters: 0,
   rating: null,
   reviewCount: 0,
@@ -31,12 +36,13 @@ const place = (
  * `nowhere` → 422 unresolved, `provider-outage` → 503, `poorly-served` → far from everything.
  */
 const TEST_FIXTURES: MockPlacesConfig = {
+  point: TEST_ORIGIN,
   unresolvedQueries: ['nowhere'],
   outageQueries: ['provider-outage'],
   points: { 'poorly-served': { lat: 50, lng: 50 } },
   noDataTypes: ['libraries'],
   candidates: {
-    cafes: [place('cafes', 0.001), place('cafes', 0.007)],
+    cafes: [place('cafes', 0.001), place('cafes', 0.009)],
     transit: [place('transit', 0.0015, { rating: 5, reviewCount: 40 })],
     groceries: [place('groceries', 0.003)],
     bookstores: [place('bookstores', 0.004, { rating: 4, reviewCount: 12 })],
@@ -83,4 +89,34 @@ export const getScoringService = (): ScoringService => {
         }),
       });
   return cached;
+};
+
+let cachedIsochrone: IsochroneService | undefined;
+
+/** Reachable walking area, backed by ORS in production and a deterministic fixture in tests. */
+export const getIsochroneService = (): IsochroneService => {
+  if (cachedIsochrone) return cachedIsochrone;
+  const config = loadConfig();
+  const places = new MockPlacesAdapter(TEST_FIXTURES);
+
+  cachedIsochrone = config.testMode
+    ? new IsochroneService({
+        logger,
+        places,
+        isochrone: new MockIsochroneAdapter(),
+        attribution: 'Test isochrone',
+      })
+    : new IsochroneService({
+        logger,
+        places: new OverpassPlacesAdapter({
+          overpassUrl: config.placesBaseUrl,
+          geocodeUrl: config.geocodeBaseUrl,
+        }),
+        isochrone: new OrsIsochroneAdapter({
+          baseUrl: config.routingBaseUrl,
+          apiKey: config.routingApiKey,
+        }),
+        attribution: 'openrouteservice · OpenStreetMap',
+      });
+  return cachedIsochrone;
 };

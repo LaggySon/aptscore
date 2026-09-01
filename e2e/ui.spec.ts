@@ -55,7 +55,8 @@ test.describe('Scoring UI (US1)', () => {
     await scoreButton.click();
     const before = await page.getByTestId('primary-score').textContent();
 
-    // Raise transit importance to High, then re-score.
+    // Return to the editable setup, raise transit importance to High, then re-score.
+    await page.getByRole('button', { name: /adjust this search/i }).click();
     await page
       .getByRole('group', { name: /importance for public transit/i })
       .getByRole('button', { name: 'High' })

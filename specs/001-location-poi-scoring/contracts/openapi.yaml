@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: aptscore Location POI Scoring API
-  version: '1.1.0'
+  version: '1.2.0'
   description: >
     Scores a single location against a user-selected set of interest types using
     walking proximity and ratings. Produces a primary (unbounded) score and a
@@ -57,6 +57,38 @@ paths:
           description: >
             Scoring unavailable - routing/places provider unavailable. Fail-closed,
             no partial or approximate score returned (FR-012).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /isochrone:
+    post:
+      summary: Generate the routed walking area for a location and range
+      operationId: generateIsochrone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IsochroneRequest'
+      responses:
+        '200':
+          description: Routed walking polygon produced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IsochroneResult'
+        '400':
+          description: Invalid location or range
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          description: Location could not be resolved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503':
+          description: Isochrone provider unavailable
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -120,11 +152,13 @@ components:
           $ref: '#/components/schemas/RangeSetting'
     NearbyPlace:
       type: object
-      required: [id, name, typeId, walkingSeconds]
+      required: [id, name, typeId, lat, lng, walkingSeconds]
       properties:
         id: { type: string }
         name: { type: string }
         typeId: { type: string }
+        lat: { type: number }
+        lng: { type: number }
         walkingSeconds:
           type: number
           description: Routed walking time (authoritative for minutes range mode)
@@ -237,6 +271,46 @@ components:
         generatedAt:
           type: string
           format: date-time
+    IsochroneRequest:
+      type: object
+      required: [location]
+      properties:
+        location:
+          type: object
+          description: Either a text query or explicit coordinates
+          properties:
+            query: { type: string }
+            lat: { type: number }
+            lng: { type: number }
+        range: { $ref: '#/components/schemas/RangeSetting' }
+    GeoPosition:
+      type: array
+      minItems: 2
+      maxItems: 2
+      items: { type: number }
+      description: RFC 7946 [longitude, latitude]
+    IsochroneResult:
+      type: object
+      required: [location, range, travelMode, rings, attribution, generatedAt]
+      properties:
+        location:
+          type: object
+          required: [lat, lng, resolved]
+          properties:
+            query: { type: string }
+            lat: { type: number }
+            lng: { type: number }
+            resolved: { type: boolean }
+        range: { $ref: '#/components/schemas/RangeSetting' }
+        travelMode: { type: string, enum: [walking] }
+        rings:
+          type: array
+          description: GeoJSON Polygon rings, outer boundary first
+          items:
+            type: array
+            items: { $ref: '#/components/schemas/GeoPosition' }
+        attribution: { type: string }
+        generatedAt: { type: string, format: date-time }
     Error:
       type: object
       required: [code, message]

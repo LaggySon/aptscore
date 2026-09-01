@@ -9,6 +9,7 @@ the handlers directly) assert that request/response shapes match.
 
 - `GET /api/v1/interest-types` — returns the closed catalog of 14 supported interest types (FR-001).
 - `POST /api/v1/score` — scores one location against selected interests (FR-002..FR-016).
+- `POST /api/v1/isochrone` — returns the routed walking-area polygon used by the map.
 
 ## Response contract highlights
 
