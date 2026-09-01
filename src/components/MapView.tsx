@@ -258,7 +258,12 @@ export const MapView = ({ isochrone, result, state }: MapViewProps) => {
           {
             padding: window.matchMedia('(min-width: 900px)').matches
               ? { top: 90, right: 90, bottom: 90, left: 510 }
-              : { top: 50, right: 36, bottom: 70, left: 36 },
+              : {
+                  top: 50,
+                  right: 36,
+                  bottom: Math.round(window.innerHeight * 0.62) + 24,
+                  left: 36,
+                },
             duration: 900,
             maxZoom: 15,
           },
@@ -349,7 +354,7 @@ const StaticMapFallback = ({ isochrone, result }: Pick<MapViewProps, 'isochrone'
           key={tile.key}
           style={{
             left: `calc(var(--fallback-center-x) + ${tile.left}px)`,
-            top: `calc(50% + ${tile.top}px)`,
+            top: `calc(var(--fallback-center-y) + ${tile.top}px)`,
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}

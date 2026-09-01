@@ -40,3 +40,17 @@ test('shows the walkable cloud after a successful score', async ({ page }) => {
   await expect(page.locator('.static-cloud__shape')).toBeVisible();
   await expect(page.locator('.maplibre-container')).toHaveCSS('visibility', 'hidden');
 });
+
+test('keeps the fallback walking area above the mobile results sheet', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Cafés' }).click();
+  await page.getByPlaceholder(/example st/i).fill('home');
+  await page.getByRole('button', { name: /score this location/i }).click();
+
+  const cloud = await page.locator('.static-cloud__shape').boundingBox();
+  const panel = await page.locator('.app-panel').boundingBox();
+  expect(cloud).not.toBeNull();
+  expect(panel).not.toBeNull();
+  expect(cloud!.y + cloud!.height).toBeLessThan(panel!.y);
+});

@@ -82,6 +82,7 @@ summary:focus-visible {
 }
 .static-map {
   --fallback-center-x: 64%;
+  --fallback-center-y: 50%;
   position: absolute;
   inset: 0;
   overflow: hidden;
@@ -1106,9 +1107,16 @@ summary:focus-visible {
   }
   .static-map {
     --fallback-center-x: 50%;
+    --fallback-center-y: 22%;
   }
   .static-cloud {
-    transform: translateX(-15%);
+    transform: translate(-15%, -28%);
+  }
+  .has-result .static-map {
+    --fallback-center-y: 19%;
+  }
+  .has-result .static-cloud {
+    transform: translate(-15%, -31%);
   }
   .map-status {
     top: 12px;
