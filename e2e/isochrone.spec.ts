@@ -37,4 +37,6 @@ test('shows the walkable cloud after a successful score', async ({ page }) => {
   await expect(page.getByTestId('isochrone-map')).toBeVisible();
   await expect(page.getByText(/20-minute walking area/i)).toBeVisible();
   await expect(page.getByText('Walking area', { exact: true })).toBeVisible();
+  await expect(page.locator('.static-cloud__shape')).toBeVisible();
+  await expect(page.locator('.maplibre-container')).toHaveCSS('visibility', 'hidden');
 });

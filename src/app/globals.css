@@ -146,6 +146,14 @@ summary:focus-visible {
 .maplibregl-canvas {
   outline: none;
 }
+.maplibre-container {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+}
+.maplibre-container.is-ready {
+  visibility: visible;
+}
 .maplibregl-canvas {
   cursor: grab;
 }
@@ -1098,6 +1106,9 @@ summary:focus-visible {
   }
   .static-map {
     --fallback-center-x: 50%;
+  }
+  .static-cloud {
+    transform: translateX(-15%);
   }
   .map-status {
     top: 12px;

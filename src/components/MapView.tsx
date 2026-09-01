@@ -17,6 +17,7 @@ interface MapViewProps {
 const EMPTY_COLLECTION: FeatureCollection = { type: 'FeatureCollection', features: [] };
 const BASEMAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
 const FALLBACK_ZOOM = 13;
+const MAP_LOAD_TIMEOUT_MS = 10_000;
 
 const TYPE_COLORS: Record<string, string> = {
   groceries: '#f97316',
@@ -94,6 +95,7 @@ export const MapView = ({ isochrone, result, state }: MapViewProps) => {
       return;
     }
     let cancelled = false;
+    let loadTimer: ReturnType<typeof setTimeout> | undefined;
 
     void import('maplibre-gl')
       .then((maplibregl) => {
@@ -110,8 +112,15 @@ export const MapView = ({ isochrone, result, state }: MapViewProps) => {
         });
         mapRef.current = map;
         map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+        loadTimer = setTimeout(() => {
+          if (!cancelled && !map.loaded()) {
+            console.error('MapLibre did not finish loading; keeping the raster fallback.');
+            setMapFailed(true);
+          }
+        }, MAP_LOAD_TIMEOUT_MS);
 
         map.on('load', () => {
+          clearTimeout(loadTimer);
           map.addSource('walk-cloud', { type: 'geojson', data: EMPTY_COLLECTION });
           map.addLayer({
             id: 'walk-cloud-glow',
@@ -187,6 +196,7 @@ export const MapView = ({ isochrone, result, state }: MapViewProps) => {
               'circle-stroke-color': '#ffffff',
             },
           });
+          setMapFailed(false);
           setMapReady(true);
         });
         map.on('error', (event) => {
@@ -202,6 +212,7 @@ export const MapView = ({ isochrone, result, state }: MapViewProps) => {
 
     return () => {
       cancelled = true;
+      clearTimeout(loadTimer);
       mapRef.current?.remove();
       mapRef.current = null;
     };
@@ -265,7 +276,10 @@ export const MapView = ({ isochrone, result, state }: MapViewProps) => {
       data-testid="isochrone-map"
     >
       <StaticMapFallback isochrone={isochrone} result={result} />
-      <div ref={containerRef} className={`absolute inset-0 ${mapFailed ? 'invisible' : ''}`} />
+      <div
+        ref={containerRef}
+        className={`maplibre-container ${mapReady && !mapFailed ? 'is-ready' : ''}`}
+      />
 
       <div className={`map-status map-status--${state}`} role="status" aria-live="polite">
         <span className="map-status__icon">
