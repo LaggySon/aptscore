@@ -7,6 +7,8 @@ import { interestTypeById } from '../config/interest-types';
 import { LocationUnresolved } from '../domain/errors';
 import type { PlacesAdapter, LatLng } from '../adapters/places/places-adapter';
 import type { RoutingAdapter } from '../adapters/routing/routing-adapter';
+import type { PaceAdapter } from '../adapters/pace/pace-adapter';
+import { computeLocalPace } from '../domain/pace-score';
 import type { Logger } from '../config/logger';
 import type {
   CandidatePlace,
@@ -28,6 +30,7 @@ export interface ScoreCommand {
 
 export interface ScoringDeps {
   places: PlacesAdapter;
+  pace: PaceAdapter;
   routing: RoutingAdapter;
   logger: Logger;
 }
@@ -59,11 +62,14 @@ export class ScoringService {
     }));
 
     const location = await this.resolveLocation(command.location);
-    const candidatesByType = await this.deps.places.findNearby(
-      location,
-      selections.map((s) => s.typeId),
-      prefilterRadiusMeters,
-    );
+    const [candidatesByType, paceData] = await Promise.all([
+      this.deps.places.findNearby(
+        location,
+        selections.map((s) => s.typeId),
+        prefilterRadiusMeters,
+      ),
+      this.deps.pace.getPaceData(location),
+    ]);
     const nearbyByType = await this.measureWalking(location, candidatesByType);
 
     const contributions = selections.map((selection) =>
@@ -82,6 +88,7 @@ export class ScoringService {
       primaryScore: computePrimaryScore(contributions),
       secondaryScore: computeSecondaryScore(contributions),
       contributions,
+      localPace: computeLocalPace(paceData),
       generatedAt: new Date().toISOString(),
     };
     this.logExplanation(result);
@@ -89,7 +96,9 @@ export class ScoringService {
   }
 
   /** Resolve coordinates directly, or geocode a text query (FR-002). */
-  private async resolveLocation(input: ScoreCommand['location']): Promise<LatLng & { query?: string; resolved: true }> {
+  private async resolveLocation(
+    input: ScoreCommand['location'],
+  ): Promise<LatLng & { query?: string; resolved: true }> {
     if (typeof input.lat === 'number' && typeof input.lng === 'number') {
       return { lat: input.lat, lng: input.lng, resolved: true };
     }
@@ -148,6 +157,7 @@ export class ScoringService {
         range: result.range,
         primaryScore: result.primaryScore,
         secondaryScore: result.secondaryScore,
+        localPace: result.localPace,
         contributions: result.contributions.map((c) => ({
           typeId: c.typeId,
           importance: c.importance,

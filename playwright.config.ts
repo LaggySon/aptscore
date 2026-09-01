@@ -11,7 +11,17 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: 'list',
   use: { baseURL: 'http://localhost:3100', trace: 'on-first-retry' },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+          ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
+          : undefined,
+      },
+    },
+  ],
   // Dedicated test-mode server on its own port (3100), isolated from any dev server on
   // 3000. Reuse is safe here because only test-mode servers ever run on 3100 — and it
   // avoids a second `next dev` spawning and silently jumping to 3101 when 3100 is busy.

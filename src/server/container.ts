@@ -6,6 +6,8 @@ import { OverpassPlacesAdapter } from './adapters/places/overpass-places-adapter
 import { OrsRoutingAdapter } from './adapters/routing/ors-routing-adapter';
 import { ScoringService } from './services/scoring-service';
 import type { CandidatePlace } from './domain/types';
+import { MockPaceAdapter } from './adapters/pace/mock-pace-adapter';
+import { OverpassPaceAdapter } from './adapters/pace/overpass-pace-adapter';
 
 /** Build a fixture candidate near the origin; distance is recomputed by the adapter. */
 const place = (
@@ -52,6 +54,20 @@ export const getScoringService = (): ScoringService => {
     ? new ScoringService({
         logger,
         places: new MockPlacesAdapter(TEST_FIXTURES),
+        pace: new MockPaceAdapter({
+          streetFeatures: [
+            { kind: 'shop', distanceMeters: 150, quantity: 24 },
+            { kind: 'cafe', distanceMeters: 550, quantity: 8 },
+          ],
+          transitFeatures: [
+            { kind: 'station', distanceMeters: 300 },
+            { kind: 'bus_stop', distanceMeters: 600, quantity: 6 },
+          ],
+          roadSegments: [
+            { roadClass: 'primary', distanceMeters: 300, lengthMeters: 500 },
+            { roadClass: 'residential_unclassified', distanceMeters: 600, lengthMeters: 1200 },
+          ],
+        }),
         routing: new MockRoutingAdapter(),
       })
     : new ScoringService({
@@ -60,6 +76,7 @@ export const getScoringService = (): ScoringService => {
           overpassUrl: config.placesBaseUrl,
           geocodeUrl: config.geocodeBaseUrl,
         }),
+        pace: new OverpassPaceAdapter({ overpassUrl: config.placesBaseUrl }),
         routing: new OrsRoutingAdapter({
           baseUrl: config.routingBaseUrl,
           apiKey: config.routingApiKey,

@@ -24,9 +24,15 @@ test.describe('Scoring UI (US1)', () => {
 
     await expect(page.getByTestId('primary-score')).toBeVisible();
     await expect(page.getByTestId('secondary-score')).toBeVisible();
+    await expect(page.getByTestId('local-pace')).toContainText('mph');
+    await expect(
+      page.getByText(/pace measures local urban intensity, not desirability/i),
+    ).toBeVisible();
   });
 
-  test('shows an explainable breakdown with a top match and no-data state (US2)', async ({ page }) => {
+  test('shows an explainable breakdown with a top match and no-data state (US2)', async ({
+    page,
+  }) => {
     await page.goto('/');
     await page.getByRole('button', { name: 'Cafés' }).click();
     await page.getByRole('button', { name: 'Public transit' }).click();
@@ -39,7 +45,7 @@ test.describe('Scoring UI (US1)', () => {
     await expect(page.getByText(/no data for this area/i)).toBeVisible();
   });
 
-  test('changing an interest\'s importance changes the score (US3 / FR-009)', async ({ page }) => {
+  test("changing an interest's importance changes the score (US3 / FR-009)", async ({ page }) => {
     await page.goto('/');
     await page.getByRole('button', { name: 'Cafés' }).click();
     await page.getByRole('button', { name: 'Public transit' }).click();

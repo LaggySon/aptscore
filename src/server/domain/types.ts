@@ -1,5 +1,7 @@
 /** Domain & transfer types for location scoring (see specs/.../data-model.md). */
 
+import type { LocalPaceResult } from './pace-types';
+
 export type ImportanceLevel = 'low' | 'medium' | 'high';
 
 export type RangeMode = 'minutes' | 'distance';
@@ -99,6 +101,8 @@ export interface ScoreResult {
   /** Bounded 0–100 score (FR-008 secondary). */
   secondaryScore: number;
   contributions: TypeContribution[];
+  /** Metaphorical 0–100 urban-intensity score, separate from desirability. */
+  localPace: LocalPaceResult;
   /** Observability only — never an input to scoring, preserving determinism (FR-014). */
   generatedAt: string;
 }
