@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FeatureCollection, Point, Polygon } from 'geojson';
-import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl';
-import type { IsochroneResult, ScoreResult } from '../types';
+import type { GeoJSONSource, Map as MapLibreMap, Popup as MapLibrePopup } from 'maplibre-gl';
+import { formatWalkMinutes } from '../lib/format';
+import type { IsochroneResult, ScoredPlace, ScoreResult } from '../types';
 import { Icon } from './ui/Icon';
 
 type MapState = 'idle' | 'scoring' | 'mapping' | 'ready' | 'error';
@@ -19,21 +20,51 @@ const BASEMAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
 const FALLBACK_ZOOM = 13;
 const MAP_LOAD_TIMEOUT_MS = 10_000;
 
-const TYPE_COLORS: Record<string, string> = {
-  groceries: '#f97316',
-  transit: '#2563eb',
-  cafes: '#a16207',
-  restaurants: '#e11d48',
-  parks: '#16a34a',
-  pharmacy: '#db2777',
-  bookstores: '#7c3aed',
-  pubs: '#9333ea',
-  gyms: '#dc2626',
-  schools: '#0891b2',
-  healthcare: '#e11d48',
-  libraries: '#4f46e5',
-  bakeries: '#d97706',
-  banks: '#475569',
+const TYPE_DETAILS: Record<string, { label: string; color: string }> = {
+  groceries: { label: 'Groceries / supermarkets', color: '#c2410c' },
+  transit: { label: 'Public transit', color: '#2563eb' },
+  cafes: { label: 'Cafés', color: '#92400e' },
+  restaurants: { label: 'Restaurants', color: '#e11d48' },
+  parks: { label: 'Parks / green space', color: '#15803d' },
+  pharmacy: { label: 'Pharmacy', color: '#c026d3' },
+  bookstores: { label: 'Bookstores', color: '#6d28d9' },
+  pubs: { label: 'Bars / pubs', color: '#9333ea' },
+  gyms: { label: 'Gyms / fitness', color: '#dc2626' },
+  schools: { label: 'Schools', color: '#0e7490' },
+  healthcare: { label: 'Healthcare', color: '#be123c' },
+  libraries: { label: 'Libraries', color: '#4338ca' },
+  bakeries: { label: 'Bakeries', color: '#d97706' },
+  banks: { label: 'Banks / ATMs', color: '#475569' },
+};
+
+const typeDetails = (typeId: string) => TYPE_DETAILS[typeId] ?? { label: typeId, color: '#334155' };
+
+const formatWalkDistance = (meters: number): string =>
+  meters < 1_000 ? `${Math.round(meters)} m` : `${(meters / 1_000).toFixed(1)} km`;
+
+const placeSummary = (place: Pick<ScoredPlace, 'walkingSeconds' | 'walkingMeters'>): string =>
+  `${formatWalkMinutes(place.walkingSeconds)} walk · ${formatWalkDistance(place.walkingMeters)}`;
+
+const createPlacePopupContent = (properties: Record<string, unknown>): HTMLDivElement => {
+  const content = document.createElement('div');
+  content.className = 'place-popup';
+
+  const category = document.createElement('span');
+  category.className = 'place-popup__category';
+  category.textContent = String(properties.typeLabel ?? 'Place');
+
+  const name = document.createElement('strong');
+  name.textContent = String(properties.name ?? 'Unnamed place');
+
+  const walk = document.createElement('span');
+  walk.className = 'place-popup__walk';
+  walk.textContent = placeSummary({
+    walkingSeconds: Number(properties.walkingSeconds ?? 0),
+    walkingMeters: Number(properties.walkingMeters ?? 0),
+  });
+
+  content.append(category, name, walk);
+  return content;
 };
 
 const getBounds = (rings: IsochroneResult['rings']) => {
@@ -66,6 +97,7 @@ const rangeLabel = (range: ScoreResult['range']): string =>
 export const MapView = ({ isochrone, result, state }: MapViewProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
+  const popupRef = useRef<MapLibrePopup | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapFailed, setMapFailed] = useState(false);
 
@@ -74,17 +106,35 @@ export const MapView = ({ isochrone, result, state }: MapViewProps) => {
       type: 'FeatureCollection',
       features:
         result?.contributions.flatMap((contribution) =>
-          contribution.contributingPlaces.map((place) => ({
-            type: 'Feature' as const,
-            geometry: { type: 'Point' as const, coordinates: [place.lng, place.lat] },
-            properties: {
-              name: place.name,
-              typeId: contribution.typeId,
-              color: TYPE_COLORS[contribution.typeId] ?? '#334155',
-            },
-          })),
+          contribution.contributingPlaces.map((place) => {
+            const details = typeDetails(contribution.typeId);
+            return {
+              type: 'Feature' as const,
+              geometry: { type: 'Point' as const, coordinates: [place.lng, place.lat] },
+              properties: {
+                id: place.id,
+                name: place.name,
+                typeId: contribution.typeId,
+                typeLabel: details.label,
+                color: details.color,
+                walkingSeconds: place.walkingSeconds,
+                walkingMeters: place.walkingMeters,
+              },
+            };
+          }),
         ) ?? [],
     }),
+    [result],
+  );
+
+  const legendItems = useMemo(
+    () =>
+      result?.contributions
+        .filter((contribution) => contribution.contributingPlaces.length > 0)
+        .map((contribution) => ({
+          typeId: contribution.typeId,
+          ...typeDetails(contribution.typeId),
+        })) ?? [],
     [result],
   );
 
@@ -154,6 +204,15 @@ export const MapView = ({ isochrone, result, state }: MapViewProps) => {
           });
           map.addSource('scored-places', { type: 'geojson', data: EMPTY_COLLECTION });
           map.addLayer({
+            id: 'scored-places-hit-area',
+            type: 'circle',
+            source: 'scored-places',
+            paint: {
+              'circle-radius': 15,
+              'circle-color': 'rgba(0,0,0,0)',
+            },
+          });
+          map.addLayer({
             id: 'scored-places-halo',
             type: 'circle',
             source: 'scored-places',
@@ -196,6 +255,28 @@ export const MapView = ({ isochrone, result, state }: MapViewProps) => {
               'circle-stroke-color': '#ffffff',
             },
           });
+
+          map.on('mouseenter', 'scored-places-hit-area', () => {
+            map.getCanvas().style.cursor = 'pointer';
+          });
+          map.on('mouseleave', 'scored-places-hit-area', () => {
+            map.getCanvas().style.cursor = '';
+          });
+          map.on('click', 'scored-places-hit-area', (event) => {
+            const feature = event.features?.[0];
+            if (!feature || feature.geometry.type !== 'Point') return;
+
+            popupRef.current?.remove();
+            popupRef.current = new maplibregl.Popup({
+              closeButton: true,
+              closeOnClick: true,
+              offset: 13,
+              maxWidth: '240px',
+            })
+              .setLngLat(feature.geometry.coordinates as [number, number])
+              .setDOMContent(createPlacePopupContent(feature.properties ?? {}))
+              .addTo(map);
+          });
           setMapFailed(false);
           setMapReady(true);
         });
@@ -213,6 +294,8 @@ export const MapView = ({ isochrone, result, state }: MapViewProps) => {
     return () => {
       cancelled = true;
       clearTimeout(loadTimer);
+      popupRef.current?.remove();
+      popupRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
     };
@@ -222,6 +305,8 @@ export const MapView = ({ isochrone, result, state }: MapViewProps) => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
 
+    popupRef.current?.remove();
+    popupRef.current = null;
     (map.getSource('scored-places') as GeoJSONSource).setData(placeData);
     (map.getSource('score-origin') as GeoJSONSource).setData(
       result
@@ -280,7 +365,11 @@ export const MapView = ({ isochrone, result, state }: MapViewProps) => {
       aria-label="Interactive neighborhood map"
       data-testid="isochrone-map"
     >
-      <StaticMapFallback isochrone={isochrone} result={result} />
+      <StaticMapFallback
+        isochrone={isochrone}
+        result={result}
+        interactive={!mapReady || mapFailed}
+      />
       <div
         ref={containerRef}
         className={`maplibre-container ${mapReady && !mapFailed ? 'is-ready' : ''}`}
@@ -306,21 +395,49 @@ export const MapView = ({ isochrone, result, state }: MapViewProps) => {
         </button>
       </div>
 
-      {isochrone && (
-        <div className="map-legend">
-          <span className="map-legend__cloud" />
-          <span>
-            <strong>Walking area</strong>
-            <small>{isochrone.attribution}</small>
-          </span>
+      {(isochrone || result) && (
+        <div className="map-legend" aria-label="Map key">
+          <strong className="map-legend__title">Map key</strong>
+          <ul>
+            {isochrone && (
+              <li>
+                <span className="map-legend__cloud" />
+                Walking area
+              </li>
+            )}
+            {result && (
+              <li>
+                <span className="map-legend__origin" />
+                Your address
+              </li>
+            )}
+            {legendItems.map((item) => (
+              <li key={item.typeId}>
+                <span className="map-legend__dot" style={{ backgroundColor: item.color }} />
+                {item.label}
+              </li>
+            ))}
+          </ul>
+          {isochrone && <small>{isochrone.attribution}</small>}
         </div>
       )}
     </section>
   );
 };
 
+interface StaticMapFallbackProps extends Pick<MapViewProps, 'isochrone' | 'result'> {
+  interactive: boolean;
+}
+
 /** Raster fallback for browsers without WebGL; MapLibre covers it when available. */
-const StaticMapFallback = ({ isochrone, result }: Pick<MapViewProps, 'isochrone' | 'result'>) => {
+const StaticMapFallback = ({ isochrone, result, interactive }: StaticMapFallbackProps) => {
+  const [selectedPlace, setSelectedPlace] = useState<ScoredPlace | null>(null);
+  const places = useMemo(
+    () => result?.contributions.flatMap((item) => item.contributingPlaces) ?? [],
+    [result],
+  );
+
+  useEffect(() => setSelectedPlace(null), [result]);
   const center = result
     ? { lng: result.location.lng, lat: result.location.lat }
     : { lng: -0.1278, lat: 51.5074 };
@@ -329,6 +446,13 @@ const StaticMapFallback = ({ isochrone, result }: Pick<MapViewProps, 'isochrone'
   const sinLat = Math.sin((center.lat * Math.PI) / 180);
   const centerY = (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * worldTiles;
   const tiles = [];
+
+  const positionOf = (place: Pick<ScoredPlace, 'lng' | 'lat'>) => {
+    const x = ((place.lng + 180) / 360) * worldTiles;
+    const sinPlaceLat = Math.sin((place.lat * Math.PI) / 180);
+    const y = (0.5 - Math.log((1 + sinPlaceLat) / (1 - sinPlaceLat)) / (4 * Math.PI)) * worldTiles;
+    return { left: (x - centerX) * 256, top: (y - centerY) * 256 };
+  };
 
   for (let dx = -3; dx <= 3; dx += 1) {
     for (let dy = -2; dy <= 2; dy += 1) {
@@ -345,9 +469,14 @@ const StaticMapFallback = ({ isochrone, result }: Pick<MapViewProps, 'isochrone'
   }
 
   const cloudPath = isochrone ? fallbackCloudPath(isochrone.rings) : null;
+  const selectedPosition = selectedPlace ? positionOf(selectedPlace) : null;
 
   return (
-    <div className="static-map" aria-hidden="true">
+    <div
+      className={`static-map ${interactive ? 'is-interactive' : ''}`}
+      aria-label={interactive ? 'Neighborhood map' : undefined}
+      aria-hidden={!interactive}
+    >
       {tiles.map((tile) => (
         <div
           className="static-map__tile"
@@ -376,6 +505,48 @@ const StaticMapFallback = ({ isochrone, result }: Pick<MapViewProps, 'isochrone'
           <circle cx="65" cy="50" r="1.25" className="static-cloud__pulse" />
           <circle cx="65" cy="50" r=".58" className="static-cloud__origin" />
         </svg>
+      )}
+      <div className="static-place-markers">
+        {places.map((place) => {
+          const position = positionOf(place);
+          return (
+            <button
+              type="button"
+              className="static-place-marker"
+              key={`${place.typeId}-${place.id}`}
+              aria-label={`View ${place.name}`}
+              style={{
+                left: `calc(var(--fallback-center-x) + ${position.left}px)`,
+                top: `calc(var(--fallback-center-y) + ${position.top}px)`,
+                backgroundColor: typeDetails(place.typeId).color,
+              }}
+              onClick={() => setSelectedPlace(place)}
+            />
+          );
+        })}
+      </div>
+      {selectedPlace && selectedPosition && (
+        <div
+          className="static-place-popup"
+          role="dialog"
+          aria-label={selectedPlace.name}
+          style={{
+            left: `calc(var(--fallback-center-x) + ${selectedPosition.left}px)`,
+            top: `calc(var(--fallback-center-y) + ${selectedPosition.top}px)`,
+          }}
+        >
+          <button
+            type="button"
+            className="static-place-popup__close"
+            aria-label="Close place details"
+            onClick={() => setSelectedPlace(null)}
+          >
+            <Icon name="cross" />
+          </button>
+          <span className="place-popup__category">{typeDetails(selectedPlace.typeId).label}</span>
+          <strong>{selectedPlace.name}</strong>
+          <span className="place-popup__walk">{placeSummary(selectedPlace)}</span>
+        </div>
       )}
       <small className="static-map__attribution">Esri · OpenStreetMap contributors</small>
     </div>

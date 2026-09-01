@@ -54,3 +54,21 @@ test('keeps the fallback walking area above the mobile results sheet', async ({ 
   expect(panel).not.toBeNull();
   expect(cloud!.y + cloud!.height).toBeLessThan(panel!.y);
 });
+
+test('explains marker colors and opens place details from a map marker', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Cafés' }).click();
+  await page.getByPlaceholder(/example st/i).fill('home');
+  await page.getByRole('button', { name: /score this location/i }).click();
+
+  const legend = page.getByLabel('Map key');
+  await expect(legend).toContainText('Walking area');
+  await expect(legend).toContainText('Your address');
+  await expect(legend).toContainText('Cafés');
+
+  await page.getByRole('button', { name: 'View cafes place' }).first().click();
+  const placeDetails = page.getByRole('dialog', { name: 'cafes place' });
+  await expect(placeDetails).toContainText('Cafés');
+  await expect(placeDetails).toContainText('cafes place');
+  await expect(placeDetails).toContainText(/min walk · \d+ m/);
+});
