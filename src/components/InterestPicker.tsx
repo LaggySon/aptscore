@@ -1,5 +1,5 @@
-import { Chip } from './ui/Chip';
 import type { InterestTypeOption } from '../types';
+import { Icon, type IconName } from './ui/Icon';
 
 interface InterestPickerProps {
   options: InterestTypeOption[];
@@ -11,16 +11,43 @@ interface InterestPickerProps {
 export const InterestPicker = ({ options, selectedIds, onToggle }: InterestPickerProps) => {
   const selected = new Set(selectedIds);
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="interest-grid">
       {options.map((option) => (
-        <Chip
+        <button
           key={option.id}
-          selected={selected.has(option.id)}
-          onToggle={() => onToggle(option.id)}
+          type="button"
+          aria-pressed={selected.has(option.id)}
+          onClick={() => onToggle(option.id)}
+          className="interest-tile"
         >
-          {option.label}
-        </Chip>
+          <span className="interest-tile__icon">
+            <Icon name={iconByType[option.id] ?? 'sparkle'} />
+          </span>
+          <span>{shortLabel(option.label)}</span>
+          <span className="interest-tile__check">
+            <Icon name="check" />
+          </span>
+        </button>
       ))}
     </div>
   );
 };
+
+const iconByType: Record<string, IconName> = {
+  groceries: 'groceries',
+  transit: 'transit',
+  cafes: 'cafe',
+  restaurants: 'restaurant',
+  parks: 'park',
+  pharmacy: 'pharmacy',
+  bookstores: 'book',
+  pubs: 'pub',
+  gyms: 'dumbbell',
+  schools: 'school',
+  healthcare: 'heart',
+  libraries: 'library',
+  bakeries: 'cafe',
+  banks: 'bank',
+};
+
+const shortLabel = (label: string): string => label.split(' / ')[0] ?? label;

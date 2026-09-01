@@ -30,6 +30,22 @@ test.describe('Scoring UI (US1)', () => {
     ).toBeVisible();
   });
 
+  test('collapses the results panel to show the full map', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Cafés' }).click();
+    await page.getByPlaceholder(/example st/i).fill('home');
+    await page.getByRole('button', { name: /score this location/i }).click();
+
+    const panel = page.getByLabel('Location score results');
+    await page.getByRole('button', { name: 'Hide search panel' }).click();
+    await expect(panel).toHaveCSS('visibility', 'hidden');
+    await expect(page.getByRole('button', { name: 'Show search panel' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Show search panel' }).click();
+    await expect(panel).toHaveCSS('visibility', 'visible');
+  });
+
   test('shows an explainable breakdown with a top match and no-data state (US2)', async ({
     page,
   }) => {
@@ -55,7 +71,8 @@ test.describe('Scoring UI (US1)', () => {
     await scoreButton.click();
     const before = await page.getByTestId('primary-score').textContent();
 
-    // Raise transit importance to High, then re-score.
+    // Return to the editable setup, raise transit importance to High, then re-score.
+    await page.getByRole('button', { name: /adjust this search/i }).click();
     await page
       .getByRole('group', { name: /importance for public transit/i })
       .getByRole('button', { name: 'High' })

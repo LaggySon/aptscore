@@ -137,6 +137,8 @@ export class ScoringService {
         id: candidate.id,
         name: candidate.name,
         typeId,
+        lat: candidate.lat,
+        lng: candidate.lng,
         walkingSeconds: measurement.walkingSeconds,
         walkingMeters: measurement.walkingMeters,
         straightLineMeters: candidate.straightLineMeters,

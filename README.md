@@ -29,8 +29,8 @@ A single **Next.js 14 (App Router)** app in TypeScript:
 - **API:** Route Handlers under `/api/v1` (`score`, `interest-types`)
 - **Domain:** pure, deterministic scoring in `src/server/domain` (fully isolated from I/O)
 - **Providers:** OpenStreetMap (Overpass + Nominatim) for places/geocoding, OpenRouteService
-  for walking distances — behind mockable adapters
-- **UI:** React + Tailwind CSS, reusable components in `src/components`
+  for walking distances and isochrones — behind mockable adapters
+- **UI:** React + Tailwind CSS with an interactive MapLibre/OpenFreeMap map
 - **Tests:** Playwright (API + browser E2E) against a deterministic test-mode server
 
 ## How scoring works (short version)
@@ -79,7 +79,7 @@ Any address scores from fixtures, except sentinels `nowhere` (→ 422) and `prov
 
 | Variable             | Purpose                                    | Default                    |
 | -------------------- | ------------------------------------------ | -------------------------- |
-| `ROUTING_API_KEY`    | OpenRouteService key (walking measurement) | — (required for live data) |
+| `ROUTING_API_KEY`    | OpenRouteService key (routes + isochrones) | — (required for live data) |
 | `PLACES_BASE_URL`    | Overpass endpoint                          | public Overpass            |
 | `NOMINATIM_BASE_URL` | Geocoding endpoint                         | public Nominatim           |
 | `ROUTING_BASE_URL`   | OpenRouteService endpoint                  | ORS public API             |

@@ -24,6 +24,8 @@ export interface NearbyPlace {
   id: string;
   name: string;
   typeId: string;
+  lat: number;
+  lng: number;
   walkingSeconds: number;
   walkingMeters: number;
   rating: number | null;
@@ -81,5 +83,22 @@ export interface ScoreResult {
 export interface ScoreRequest {
   location: { query?: string; lat?: number; lng?: number };
   interests: InterestSelection[];
+  range?: RangeSetting;
+}
+
+/** A GeoJSON position in `[longitude, latitude]` order. */
+export type GeoPosition = [number, number];
+
+export interface IsochroneResult {
+  location: { query?: string; lat: number; lng: number; resolved: boolean };
+  range: RangeSetting;
+  travelMode: 'walking';
+  rings: GeoPosition[][];
+  attribution: string;
+  generatedAt: string;
+}
+
+export interface IsochroneRequest {
+  location: { query?: string; lat?: number; lng?: number };
   range?: RangeSetting;
 }
