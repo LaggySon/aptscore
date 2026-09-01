@@ -42,6 +42,7 @@ export const ScorePageClient = () => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [mapState, setMapState] = useState<MapState>('idle');
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
   const panelRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -115,12 +116,33 @@ export const ScorePageClient = () => {
   };
 
   return (
-    <main className={`app-shell ${result ? 'has-result' : ''}`}>
-      <MapView isochrone={isochrone} result={result} state={mapState} />
+    <main
+      className={`app-shell ${result ? 'has-result' : ''} ${panelCollapsed ? 'is-panel-collapsed' : ''}`}
+    >
+      <MapView
+        isochrone={isochrone}
+        result={result}
+        state={mapState}
+        panelCollapsed={panelCollapsed}
+      />
+
+      <button
+        type="button"
+        className="panel-visibility-toggle"
+        aria-controls="score-panel"
+        aria-expanded={!panelCollapsed}
+        aria-label={panelCollapsed ? 'Show search panel' : 'Hide search panel'}
+        onClick={() => setPanelCollapsed((current) => !current)}
+      >
+        <Icon name="chevron-down" />
+        <span>{panelCollapsed ? 'Show search' : 'Hide'}</span>
+      </button>
 
       <aside
+        id="score-panel"
         ref={panelRef}
         className="app-panel"
+        aria-hidden={panelCollapsed}
         aria-label={result ? 'Location score results' : 'Score a location'}
       >
         {result ? (

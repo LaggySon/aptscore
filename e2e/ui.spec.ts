@@ -30,6 +30,22 @@ test.describe('Scoring UI (US1)', () => {
     ).toBeVisible();
   });
 
+  test('collapses the results panel to show the full map', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Cafés' }).click();
+    await page.getByPlaceholder(/example st/i).fill('home');
+    await page.getByRole('button', { name: /score this location/i }).click();
+
+    const panel = page.getByLabel('Location score results');
+    await page.getByRole('button', { name: 'Hide search panel' }).click();
+    await expect(panel).toHaveCSS('visibility', 'hidden');
+    await expect(page.getByRole('button', { name: 'Show search panel' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Show search panel' }).click();
+    await expect(panel).toHaveCSS('visibility', 'visible');
+  });
+
   test('shows an explainable breakdown with a top match and no-data state (US2)', async ({
     page,
   }) => {

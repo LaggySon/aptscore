@@ -13,6 +13,7 @@ interface MapViewProps {
   isochrone: IsochroneResult | null;
   result: ScoreResult | null;
   state: MapState;
+  panelCollapsed: boolean;
 }
 
 const EMPTY_COLLECTION: FeatureCollection = { type: 'FeatureCollection', features: [] };
@@ -94,7 +95,7 @@ const rangeLabel = (range: ScoreResult['range']): string =>
     ? `${range.value}-minute walking`
     : `${range.value} ${range.distanceUnit ?? 'm'} walking`;
 
-export const MapView = ({ isochrone, result, state }: MapViewProps) => {
+export const MapView = ({ isochrone, result, state, panelCollapsed }: MapViewProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const popupRef = useRef<MapLibrePopup | null>(null);
@@ -202,11 +203,41 @@ export const MapView = ({ isochrone, result, state }: MapViewProps) => {
               'line-opacity': 0.85,
             },
           });
-          map.addSource('scored-places', { type: 'geojson', data: EMPTY_COLLECTION });
+          map.addSource('scored-places', {
+            type: 'geojson',
+            data: EMPTY_COLLECTION,
+            cluster: true,
+            clusterMaxZoom: 15,
+            clusterRadius: 38,
+          });
+          map.addLayer({
+            id: 'place-clusters',
+            type: 'circle',
+            source: 'scored-places',
+            filter: ['has', 'point_count'],
+            paint: {
+              'circle-radius': ['step', ['get', 'point_count'], 14, 8, 17, 20, 20],
+              'circle-color': '#24483e',
+              'circle-stroke-width': 3,
+              'circle-stroke-color': '#ffffff',
+            },
+          });
+          map.addLayer({
+            id: 'place-cluster-count',
+            type: 'symbol',
+            source: 'scored-places',
+            filter: ['has', 'point_count'],
+            layout: {
+              'text-field': ['get', 'point_count_abbreviated'],
+              'text-size': 11,
+            },
+            paint: { 'text-color': '#ffffff' },
+          });
           map.addLayer({
             id: 'scored-places-hit-area',
             type: 'circle',
             source: 'scored-places',
+            filter: ['!', ['has', 'point_count']],
             paint: {
               'circle-radius': 15,
               'circle-color': 'rgba(0,0,0,0)',
@@ -216,6 +247,7 @@ export const MapView = ({ isochrone, result, state }: MapViewProps) => {
             id: 'scored-places-halo',
             type: 'circle',
             source: 'scored-places',
+            filter: ['!', ['has', 'point_count']],
             paint: {
               'circle-radius': 8,
               'circle-color': '#ffffff',
@@ -226,6 +258,7 @@ export const MapView = ({ isochrone, result, state }: MapViewProps) => {
             id: 'scored-places-dot',
             type: 'circle',
             source: 'scored-places',
+            filter: ['!', ['has', 'point_count']],
             paint: {
               'circle-radius': 5,
               'circle-color': ['get', 'color'],
@@ -261,6 +294,27 @@ export const MapView = ({ isochrone, result, state }: MapViewProps) => {
           });
           map.on('mouseleave', 'scored-places-hit-area', () => {
             map.getCanvas().style.cursor = '';
+          });
+          map.on('mouseenter', 'place-clusters', () => {
+            map.getCanvas().style.cursor = 'pointer';
+          });
+          map.on('mouseleave', 'place-clusters', () => {
+            map.getCanvas().style.cursor = '';
+          });
+          map.on('click', 'place-clusters', (event) => {
+            const feature = event.features?.[0];
+            if (!feature || feature.geometry.type !== 'Point') return;
+            const clusterId = Number(feature.properties?.cluster_id);
+            const coordinates = feature.geometry.coordinates as [number, number];
+            const source = map.getSource('scored-places') as GeoJSONSource;
+
+            void source.getClusterExpansionZoom(clusterId).then((zoom) => {
+              map.easeTo({
+                center: coordinates,
+                zoom,
+                duration: 450,
+              });
+            });
           });
           map.on('click', 'scored-places-hit-area', (event) => {
             const feature = event.features?.[0];
@@ -341,14 +395,16 @@ export const MapView = ({ isochrone, result, state }: MapViewProps) => {
             [bounds.east, bounds.north],
           ],
           {
-            padding: window.matchMedia('(min-width: 900px)').matches
-              ? { top: 90, right: 90, bottom: 90, left: 510 }
-              : {
-                  top: 50,
-                  right: 36,
-                  bottom: Math.round(window.innerHeight * 0.62) + 24,
-                  left: 36,
-                },
+            padding: panelCollapsed
+              ? { top: 56, right: 56, bottom: 56, left: 56 }
+              : window.matchMedia('(min-width: 900px)').matches
+                ? { top: 90, right: 90, bottom: 90, left: 510 }
+                : {
+                    top: 50,
+                    right: 36,
+                    bottom: Math.round(window.innerHeight * 0.62) + 24,
+                    left: 36,
+                  },
             duration: 900,
             maxZoom: 15,
           },
@@ -357,7 +413,7 @@ export const MapView = ({ isochrone, result, state }: MapViewProps) => {
     } else if (result) {
       map.easeTo({ center: [result.location.lng, result.location.lat], zoom: 13, duration: 700 });
     }
-  }, [isochrone, mapReady, placeData, result]);
+  }, [isochrone, mapReady, panelCollapsed, placeData, result]);
 
   return (
     <section
@@ -411,6 +467,12 @@ export const MapView = ({ isochrone, result, state }: MapViewProps) => {
                 Your address
               </li>
             )}
+            {placeData.features.length > 1 && (
+              <li>
+                <span className="map-legend__cluster">2+</span>
+                Grouped places
+              </li>
+            )}
             {legendItems.map((item) => (
               <li key={item.typeId}>
                 <span className="map-legend__dot" style={{ backgroundColor: item.color }} />
@@ -429,15 +491,21 @@ interface StaticMapFallbackProps extends Pick<MapViewProps, 'isochrone' | 'resul
   interactive: boolean;
 }
 
+interface FallbackMarkerGroup {
+  places: ScoredPlace[];
+  left: number;
+  top: number;
+}
+
 /** Raster fallback for browsers without WebGL; MapLibre covers it when available. */
 const StaticMapFallback = ({ isochrone, result, interactive }: StaticMapFallbackProps) => {
-  const [selectedPlace, setSelectedPlace] = useState<ScoredPlace | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<FallbackMarkerGroup | null>(null);
   const places = useMemo(
     () => result?.contributions.flatMap((item) => item.contributingPlaces) ?? [],
     [result],
   );
 
-  useEffect(() => setSelectedPlace(null), [result]);
+  useEffect(() => setSelectedGroup(null), [result]);
   const center = result
     ? { lng: result.location.lng, lat: result.location.lat }
     : { lng: -0.1278, lat: 51.5074 };
@@ -454,6 +522,20 @@ const StaticMapFallback = ({ isochrone, result, interactive }: StaticMapFallback
     return { left: (x - centerX) * 256, top: (y - centerY) * 256 };
   };
 
+  const markerGroups = places.reduce<FallbackMarkerGroup[]>((groups, place) => {
+    const position = positionOf(place);
+    const nearby = groups.find(
+      (group) => Math.hypot(group.left - position.left, group.top - position.top) < 50,
+    );
+    if (!nearby) return [...groups, { places: [place], ...position }];
+
+    const count = nearby.places.length;
+    nearby.left = (nearby.left * count + position.left) / (count + 1);
+    nearby.top = (nearby.top * count + position.top) / (count + 1);
+    nearby.places.push(place);
+    return groups;
+  }, []);
+
   for (let dx = -3; dx <= 3; dx += 1) {
     for (let dy = -2; dy <= 2; dy += 1) {
       const x = Math.floor(centerX) + dx;
@@ -469,7 +551,7 @@ const StaticMapFallback = ({ isochrone, result, interactive }: StaticMapFallback
   }
 
   const cloudPath = isochrone ? fallbackCloudPath(isochrone.rings) : null;
-  const selectedPosition = selectedPlace ? positionOf(selectedPlace) : null;
+  const selectedPlace = selectedGroup?.places.length === 1 ? selectedGroup.places[0] : null;
 
   return (
     <div
@@ -507,45 +589,73 @@ const StaticMapFallback = ({ isochrone, result, interactive }: StaticMapFallback
         </svg>
       )}
       <div className="static-place-markers">
-        {places.map((place) => {
-          const position = positionOf(place);
+        {markerGroups.map((group) => {
+          const place = group.places[0];
+          const isCluster = group.places.length > 1;
           return (
             <button
               type="button"
-              className="static-place-marker"
-              key={`${place.typeId}-${place.id}`}
-              aria-label={`View ${place.name}`}
+              className={`static-place-marker ${isCluster ? 'is-cluster' : ''}`}
+              key={group.places.map((item) => `${item.typeId}-${item.id}`).join('|')}
+              aria-label={
+                isCluster ? `View ${group.places.length} nearby places` : `View ${place.name}`
+              }
               style={{
-                left: `calc(var(--fallback-center-x) + ${position.left}px)`,
-                top: `calc(var(--fallback-center-y) + ${position.top}px)`,
-                backgroundColor: typeDetails(place.typeId).color,
+                left: `calc(var(--fallback-center-x) + ${group.left}px)`,
+                top: `calc(var(--fallback-center-y) + ${group.top}px)`,
+                backgroundColor: isCluster ? '#24483e' : typeDetails(place.typeId).color,
               }}
-              onClick={() => setSelectedPlace(place)}
-            />
+              onClick={() => setSelectedGroup(group)}
+            >
+              {isCluster ? group.places.length : null}
+            </button>
           );
         })}
       </div>
-      {selectedPlace && selectedPosition && (
+      {selectedGroup && (
         <div
           className="static-place-popup"
           role="dialog"
-          aria-label={selectedPlace.name}
+          aria-label={selectedPlace?.name ?? `${selectedGroup.places.length} nearby places`}
           style={{
-            left: `calc(var(--fallback-center-x) + ${selectedPosition.left}px)`,
-            top: `calc(var(--fallback-center-y) + ${selectedPosition.top}px)`,
+            left: `calc(var(--fallback-center-x) + ${selectedGroup.left}px)`,
+            top: `calc(var(--fallback-center-y) + ${selectedGroup.top}px)`,
           }}
         >
           <button
             type="button"
             className="static-place-popup__close"
             aria-label="Close place details"
-            onClick={() => setSelectedPlace(null)}
+            onClick={() => setSelectedGroup(null)}
           >
             <Icon name="cross" />
           </button>
-          <span className="place-popup__category">{typeDetails(selectedPlace.typeId).label}</span>
-          <strong>{selectedPlace.name}</strong>
-          <span className="place-popup__walk">{placeSummary(selectedPlace)}</span>
+          {selectedPlace ? (
+            <>
+              <span className="place-popup__category">
+                {typeDetails(selectedPlace.typeId).label}
+              </span>
+              <strong>{selectedPlace.name}</strong>
+              <span className="place-popup__walk">{placeSummary(selectedPlace)}</span>
+            </>
+          ) : (
+            <>
+              <strong>{selectedGroup.places.length} nearby places</strong>
+              <ul className="static-place-popup__list">
+                {selectedGroup.places.map((place) => (
+                  <li key={`${place.typeId}-${place.id}`}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedGroup({ ...selectedGroup, places: [place] })}
+                    >
+                      <span>{place.name}</span>
+                      <small>{typeDetails(place.typeId).label}</small>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
       )}
       <small className="static-map__attribution">Esri · OpenStreetMap contributors</small>

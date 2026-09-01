@@ -64,9 +64,17 @@ test('explains marker colors and opens place details from a map marker', async (
   const legend = page.getByLabel('Map key');
   await expect(legend).toContainText('Walking area');
   await expect(legend).toContainText('Your address');
+  await expect(legend).toContainText('Grouped places');
   await expect(legend).toContainText('Cafés');
 
-  await page.getByRole('button', { name: 'View cafes place' }).first().click();
+  await page.getByRole('button', { name: 'View 2 nearby places' }).click();
+  const groupDetails = page.getByRole('dialog', { name: '2 nearby places' });
+  await expect(groupDetails).toContainText('2 nearby places');
+  await groupDetails
+    .getByRole('button', { name: /cafes place/i })
+    .first()
+    .click();
+
   const placeDetails = page.getByRole('dialog', { name: 'cafes place' });
   await expect(placeDetails).toContainText('Cafés');
   await expect(placeDetails).toContainText('cafes place');
